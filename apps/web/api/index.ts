@@ -50,6 +50,22 @@ async function generateWithFallback(promptText:string, systemText:string){
 }
 
 
+app.post("/signup",async(req,res)=>{
+
+})
+
+app.post("/signin",async (req,res) => {
+
+})
+
+app.get("/conversation",async (req,res) =>{
+
+})
+
+app.post("/conversation/:conversationId",async( req,res)=>{
+  
+})
+
 app.post("/delve_Ask",async (req,res) =>{
    // STEP-1 = get the query from the user
    const query=req.body.query;
