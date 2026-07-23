@@ -1,18 +1,21 @@
 import 'dotenv/config';
+import cors from "cors"
 import express from "express";
 import {tavily} from '@tavily/core';
+
 import { PROMPT_TEMPLATE } from "./prompt";
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
 import { SYSTEM_PROMPT } from "./prompt";
 import { prisma } from './db';
+import { middleware } from './middlerware';
 
 const app=express();
 const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
 app.use(express.json());
-
+app.use(cors());
 const googleProvider = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_AI_KEY || ''
 });
@@ -50,34 +53,72 @@ async function generateWithFallback(promptText:string, systemText:string){
    }
 }
 
-const res=await prisma.user.create({
-  data:{
-    email:"djoejfe",
-    provider:"Github",
-    name:"Depanshu"
+
+ async function generateChatWithFallback(messages: any[], systemText: string) {
+  try {
+    console.log("Trying with the Google API");
+    if (!process.env.GOOGLE_AI_KEY) throw new Error("Missing Google api key");
+
+    return streamText({
+      model: googleProvider('gemini-1.5-flash'), // Ensure you use a valid model name here!
+      messages: messages, // Passing the full history here
+      system: systemText
+    });
+  } catch (error) {
+    console.error("Google failed! Triggering failover to Mistral.", error);
+    
+    return streamText({
+      model: mistralProvider('mistral-large-latest'),
+      messages: messages,
+      system: systemText
+    });
+  }
+}
+
+
+app.get("/conversation",middleware,async (req,res) =>{
+    res.json({
+      userId:req.userId
+    })
+
+})
+
+//get the past conversation using the id 
+app.get("/conversation/:conversationId",middleware,async( req,res)=>{
+
+  try{
+
+  const {conversationId}=req.params;
+  if (!conversationId) {
+      res.status(400).json({ message: "Conversation ID is required" });
+      return;
+    }
+    const response=await prisma.conversation.findFirst({
+    where:{
+      id:conversationId as string,
+      userId:req.userId
+    }
+  })
+   if(!response){
+    res.status(404).json({
+      message:"Conversation Not Found"
+    })
+   }
+
+   res.json(response);
+  
 
   }
-})
+  catch(e){
+    console.error("Error fetching conversation:", e);
+    res.status(500).json({ message: "Internal Server Error" });
 
-console.log(res);
+  }
 
-app.post("/signup",async(req,res)=>{
-
-})
-
-app.post("/signin",async (req,res) => {
-
-})
-
-app.get("/conversation",async (req,res) =>{
-
-})
-
-app.post("/conversation/:conversationId",async( req,res)=>{
   
 })
 
-app.post("/delve_Ask",async (req,res) =>{
+app.post("/delve_Ask",middleware,async (req,res) =>{
    // STEP-1 = get the query from the user
    const query=req.body.query;
 
@@ -90,6 +131,21 @@ app.post("/delve_Ask",async (req,res) =>{
 })
 
    const WebSearchResult=WebSearchResponse.results;
+
+   const conversation=await prisma.conversation.create({
+    data:{
+      title:query.slice(0,80),
+      slug:slugify(query),
+      userId:req.userId!,
+      message:{
+        create :{
+          content: query,
+          role:"User"
+        }
+      }
+
+    }
+   })
 
    // STEP-4 = do some sort of context engineering on the prompt  + web search response
 
@@ -133,17 +189,76 @@ app.post("/delve_Ask",async (req,res) =>{
 });
 
 
-app.listen(3000,()=>{
+
+
+app.post("/delve_ask/followup", middleware, async (req, res) => {
+  // step:1 get the chat from the db
+  const { conversationId, newMessage } = req.body; // <-- Extract newMessage here!
+
+  if (!newMessage) {
+    res.status(400).json({ message: "newMessage is required" });
+    return;
+  }
+
+  const response = await prisma.conversation.findFirst({
+    where: {
+      id: conversationId as string,
+      userId: req.userId,
+    },
+    include: {
+      messages: {
+        orderBy: {
+          createdAt: "asc"
+        }
+      }
+    }
+  });
+
+  if (!response) {
+    res.status(404).json({ message: "Conversation not found" });
+    return;
+  }
+
+  // step:2 forward to the llm
+  const formattedHistory: any[] = response.messages.map((msg) => ({
+    // Assuming 'role' in your DB is stored as a string "user" or "assistant"
+    // Adjust this logic if you use a boolean like 'isUser'
+    role: msg.role === "User" ? "user" : "assistant",
+    content: msg.content, 
+  }));
+
+  // Append the brand new question the user just asked
+  formattedHistory.push({ role: "user", content: newMessage });
+
+  // step:3 Do some context engineering here
+  // Set up the specific headers required for streaming text over HTTP
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  try {
+    // step:4 stream back the response
+    const result = await generateChatWithFallback(formattedHistory, SYSTEM_PROMPT);
+
+    for await (const TextPart of result.textStream) {
+      // Stream chunks back to the client as they are generated
+      res.write(TextPart);
+    }
+    
+    // Close the stream once the LLM finishes
+    res.end();
+
+  } catch (e) {
+    console.error("Error streaming followup:", e);
+    res.status(500).end();
+  }
+});
+
+
+app.listen(3001,()=>{
   console.log(
     "Listening on the Port number"
   )
 }
 
 );
-
-
-app.post("/delve_ask/followup",async (req,res) => {
-  // step:1 get the chat from the db
-  // step:2 forward to the llm
-  // step:3 stream back the response
-})
