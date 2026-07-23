@@ -6,6 +6,7 @@ import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
 import { SYSTEM_PROMPT } from "./prompt";
+import { prisma } from './db';
 
 const app=express();
 const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
@@ -49,6 +50,16 @@ async function generateWithFallback(promptText:string, systemText:string){
    }
 }
 
+const res=await prisma.user.create({
+  data:{
+    email:"djoejfe",
+    provider:"Github",
+    name:"Depanshu"
+
+  }
+})
+
+console.log(res);
 
 app.post("/signup",async(req,res)=>{
 
