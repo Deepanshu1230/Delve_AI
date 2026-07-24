@@ -118,15 +118,31 @@ app.get("/conversation/:conversationId",middleware,async( req,res)=>{
   
 })
 
+function slugify(text: string): string {
+  return text
+    .toString()
+    .normalize('NFD') // Decomposes accented characters 
+    .replace(/[\u0300-\u036f]/g, '') // Removes combining diacritical marks
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '') // Removes remaining non-alphanumeric characters
+    .replace(/[\s_-]+/g, '-'); // Collapses consecutive spaces or underscores into a single hyphen
+}
+
 app.post("/delve_Ask",middleware,async (req,res) =>{
    // STEP-1 = get the query from the user
    const query=req.body.query;
+
+   if (!query) {
+      res.status(400).json({ message: "Query is required" });
+      return;
+    }
 
    // STEP-2 =  make sure user has access/credit to hit the endpoint
 
 
    // STEP-3 =  web search to gather the resources
-     const WebSearchResponse=await  client.search(query,{
+     const WebSearchResponse=await client.search(query,{
     searchDepth: "advanced"
 })
 
@@ -153,36 +169,57 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
    .replace("{{WEB_SEARCH_RESULT}}",JSON.stringify(WebSearchResult))
    .replace("{{USER_QUERY}}",query);
 
+   // Set streaming headers for SSE / chunked responses
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
    // STEP-5 =  check if the we have the web search feat
- 
+  
 
  
 
 
    // STEP-6 =  hit the LLM to get back the reponse 
    
-   const result = generateWithFallback(promptText,SYSTEM_PROMPT);
+   const result =await generateWithFallback(promptText,SYSTEM_PROMPT);
+    let fullAssistantText = "";
    for await (const TextPart of (await result).textStream){
     //this will stream to the llm request to the frontend
+    fullAssistantText += TextPart; // 1. Collect chunk in memory
     res.write(TextPart);
   }
 
 
-  res.write("\n\n<SOURCES>\n");
+  
 
    // STEP-7 = also get back the stream and the follow up question(which we get back from another parallel LLM call)
  
-    res.write(JSON.stringify(WebSearchResult.map(result => ({url:result.url,
-      favicon:result.favicon
-    
-    }))));
+    const sourcesJsonString = JSON.stringify(
+  WebSearchResult.map((result) => ({
+    url: result.url,
+    favicon: result.favicon,
+  }))
+);
+
+    const sourcesBlock = `\n\n<SOURCES>\n${sourcesJsonString}\n</SOURCES>`;
+
+    res.write(sourcesBlock);
 
 
-    res.write("\n\n</SOURCES>\n");
- 
+   
+   
 
   //step-8 close the event stream
   res.end();
+
+  await prisma.message.create({
+      data: {
+        content: fullAssistantText + sourcesBlock,
+        role: "Assistant",
+        conversationId: conversation.id,
+      },
+    });
 
 
 
