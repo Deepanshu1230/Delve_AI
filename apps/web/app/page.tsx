@@ -1,5 +1,11 @@
 import Image, { type ImageProps } from "next/image";
 import Dashboard from "./components/Dashboard";
+import Hero from "./components/Hero";
+import Capabilities from "./components/Capabilities";
+import BentoGrid from "./components/BentoGrid";
+import Pricing from "./components/Pricing";
+import Faq from "./components/Faq";
+import Footer from "./components/Footer";
 
 
 
@@ -7,9 +13,20 @@ import Dashboard from "./components/Dashboard";
 
 export default function Home() {
   return (
-    <div className="bg-slate-600 text-2xl">
-      hi we are on the frontend page 
-      <Dashboard/>
+    <div className="">
+     
+      
+      <Hero />
+      <Capabilities />
+      <BentoGrid />
+      <Pricing />
+      <Faq/>
+      <Footer/>
+
+      {/* <FeatureShowcase /> */}
+      {/* <PlatformGrid /> */}
+      {/* <Pricing /> */}
+      {/* <Footer /> */}
     </div>
   );
 }
