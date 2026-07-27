@@ -60,7 +60,7 @@ async function generateWithFallback(promptText:string, systemText:string){
     if (!process.env.GOOGLE_AI_KEY) throw new Error("Missing Google api key");
 
     return streamText({
-      model: googleProvider('gemini-1.5-flash'), // Ensure you use a valid model name here!
+      model: googleProvider('gemini-3.5-flash'), // Ensure you use a valid model name here!
       messages: messages, // Passing the full history here
       system: systemText
     });
@@ -76,12 +76,19 @@ async function generateWithFallback(promptText:string, systemText:string){
 }
 
 
-app.get("/conversation",middleware,async (req,res) =>{
-    res.json({
-      userId:req.userId
-    })
-
-})
+app.get("/conversation", middleware, async (req, res) => {
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: { userId: req.userId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, slug: true, createdAt: true },
+    });
+    res.json({ conversations });
+  } catch (e) {
+    console.error("Error listing conversations:", e);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 
 //get the past conversation using the id 
 app.get("/conversation/:conversationId",middleware,async( req,res)=>{
@@ -97,7 +104,8 @@ app.get("/conversation/:conversationId",middleware,async( req,res)=>{
     where:{
       id:conversationId as string,
       userId:req.userId
-    }
+    },
+    include: { messages: { orderBy: { createdAt: "asc" } } },
   })
    if(!response){
     res.status(404).json({
@@ -153,7 +161,7 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
       title:query.slice(0,80),
       slug:slugify(query),
       userId:req.userId!,
-      message:{
+      messages:{
         create :{
           content: query,
           role:"User"
@@ -170,9 +178,13 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
    .replace("{{USER_QUERY}}",query);
 
    // Set streaming headers for SSE / chunked responses
+   res.setHeader("X-Conversation-Id", conversation.id);
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+   
+    res.setHeader("Access-Control-Expose-Headers", "X-Conversation-Id");
+    res.flushHeaders();
 
    // STEP-5 =  check if the we have the web search feat
   
@@ -184,7 +196,7 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
    
    const result =await generateWithFallback(promptText,SYSTEM_PROMPT);
     let fullAssistantText = "";
-   for await (const TextPart of (await result).textStream){
+   for await (const TextPart of result.textStream){
     //this will stream to the llm request to the frontend
     fullAssistantText += TextPart; // 1. Collect chunk in memory
     res.write(TextPart);
@@ -230,8 +242,7 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
 
 
 app.post("/delve_ask/followup", middleware, async (req, res) => {
-  // step:1 get the chat from the db
-  const { conversationId, newMessage } = req.body; // <-- Extract newMessage here!
+  const { conversationId, newMessage } = req.body;
 
   if (!newMessage) {
     res.status(400).json({ message: "newMessage is required" });
@@ -239,17 +250,8 @@ app.post("/delve_ask/followup", middleware, async (req, res) => {
   }
 
   const response = await prisma.conversation.findFirst({
-    where: {
-      id: conversationId as string,
-      userId: req.userId,
-    },
-    include: {
-      messages: {
-        orderBy: {
-          createdAt: "asc"
-        }
-      }
-    }
+    where: { id: conversationId as string, userId: req.userId },
+    include: { messages: { orderBy: { createdAt: "asc" } } },
   });
 
   if (!response) {
@@ -257,41 +259,41 @@ app.post("/delve_ask/followup", middleware, async (req, res) => {
     return;
   }
 
-  // step:2 forward to the llm
   const formattedHistory: any[] = response.messages.map((msg) => ({
-    // Assuming 'role' in your DB is stored as a string "user" or "assistant"
-    // Adjust this logic if you use a boolean like 'isUser'
     role: msg.role === "User" ? "user" : "assistant",
-    content: msg.content, 
+    content: msg.content,
   }));
 
-  // Append the brand new question the user just asked
   formattedHistory.push({ role: "user", content: newMessage });
 
-  // step:3 Do some context engineering here
-  // Set up the specific headers required for streaming text over HTTP
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
 
   try {
-    // step:4 stream back the response
     const result = await generateChatWithFallback(formattedHistory, SYSTEM_PROMPT);
 
+    let fullAssistantText = ""; // ← was missing
     for await (const TextPart of result.textStream) {
-      // Stream chunks back to the client as they are generated
+      fullAssistantText += TextPart; // ← was missing
       res.write(TextPart);
     }
-    
-    // Close the stream once the LLM finishes
+
     res.end();
 
+    // ← this whole block was missing
+    await prisma.message.createMany({
+      data: [
+        { content: newMessage, role: "User", conversationId },
+        { content: fullAssistantText, role: "Assistant", conversationId },
+      ],
+    });
   } catch (e) {
     console.error("Error streaming followup:", e);
     res.status(500).end();
   }
 });
-
 
 app.listen(3001,()=>{
   console.log(

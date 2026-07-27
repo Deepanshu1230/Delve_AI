@@ -87,7 +87,7 @@ export default function Hero() {
       </header>
 
       {/* 3. Main Center Content (unchanged) */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12 max-w-4xl mx-auto mt-20 md:mt-0">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12 pb-6 max-w-4xl mx-auto mt-20 md:mt-0">
         
         <motion.h1 
           initial={{ opacity: 0, y: 15 }}

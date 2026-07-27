@@ -6,10 +6,12 @@ import {  useRouter } from 'next/navigation'
 import { BACKEND_URL } from "../lib/config";
 
 
+
 const supabase= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 export default function Dashboard(){
    const [user,setUser]=useState<User | null>(null);
    const router=useRouter();
+   
     useEffect(()=>{
     async function getInfo(){
         const {data,error}=await supabase.auth.getUser();
