@@ -1,30 +1,89 @@
-// app/dashboard/page.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDelveChat } from "../contexts/DelveChatContext";
 import { useRouter } from "next/navigation";
+import { ConversationView } from "../components/ConversationView";
 
 export default function NewChatPage() {
-  const { token, isStreaming, askInitial ,conversationId} = useDelveChat();
+  const { user,token, isStreaming, askInitial, messages, askFollowup } = useDelveChat();
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
- 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || !token || isStreaming) return;
-    
+
     const userQuery = query.trim();
     setQuery(""); // Clear input immediately for better UX
-    
-    // Await the function and capture the newly generated ID
-    const newConvId = await askInitial(userQuery, token); 
-    
-    // Imperatively route ONLY when the new chat is actually created
+
+    // Await only long enough to get the id — consumeStream itself is
+    // still running unawaited inside askInitial and already pushing
+    // chunks into `messages`, which we're now rendering below.
+    const newConvId = await askInitial(userQuery, token);
+
     if (newConvId) {
       router.push(`/dashboard/${newConvId}`);
     }
   };
+
+  const handleFollowupClick = (q: string) => {
+    if (!token || isStreaming) return;
+    askFollowup(q, token);
+  };
+
+  // Once a query has been submitted, show the live conversation instead
+  // of the landing hero. This is the fix: the message list is mounted
+  // and subscribed to context state THE MOMENT the request starts,
+  // so no chunks are ever produced while nothing is listening.
+  if (messages.length > 0) {
+    return (
+      // 1. The outermost div takes full width and handles the scrolling
+      <div className="flex flex-col flex-1 h-full w-full">
+        <div className="flex-1 overflow-y-auto w-full">
+          {/* 2. The inner div centers the chat content */}
+          <div className="max-w-3xl mx-auto w-full pt-16 px-6 pb-12">
+            <ConversationView messages={messages} onFollowupClick={handleFollowupClick} />
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* 3. The input stays anchored at the bottom, centered */}
+        <div className="w-full bg-gradient-to-t from-white via-white to-transparent pt-4 pb-6 px-6">
+          <div className="max-w-3xl mx-auto w-full">
+            <form
+              onSubmit={handleSearch}
+              className="w-full bg-white border border-gray-300 rounded-2xl shadow-sm focus-within:ring-4 focus-within:ring-gray-100 focus-within:border-gray-400 transition-all flex items-center gap-2 px-4 py-3"
+            >
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ask a follow-up..."
+                className="flex-1 bg-transparent text-gray-900 placeholder-gray-400 outline-none"
+                disabled={isStreaming}
+              />
+              <button
+                type="submit"
+                className="p-2 rounded-full bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                disabled={!query.trim() || isStreaming}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Landing hero — only shown before the first query is submitted
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 max-w-4xl mx-auto w-full h-full">
       <div className="text-center mb-10 w-full">
@@ -32,7 +91,7 @@ export default function NewChatPage() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           A Quieter Search
         </div>
-        <h1 className="text-5xl md:text-6xl font-medium tracking-tight text-gray-900 mb-6">Ask anything.</h1>
+        <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-gray-900 mb-6">Ask anything.</h1>
         <p className="text-gray-500 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
           Welcome back. Delve scours the open web, then writes you back — in full sentences, with every source receipt attached.
         </p>

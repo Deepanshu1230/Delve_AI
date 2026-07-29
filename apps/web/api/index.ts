@@ -24,32 +24,35 @@ const mistralProvider = createMistral({
   apiKey: process.env.MISTRAL_AI_KEY || ''
 });
 
-async function generateWithFallback(promptText:string, systemText:string){
-   try{
-      console.log("Trying with the google api");
+async function generateWithFallback(promptText: string, systemText: string) {
+   try {
+      console.log("Trying with the Google API...");
 
-      if(!process.env.GOOGLE_AI_KEY){
-        throw new Error("Missing Google api key"); 
+      if (!process.env.GOOGLE_AI_KEY) {
+        throw new Error("Missing Google API key"); 
       }
 
-      return streamText({
-      model: googleProvider('gemini-3.5-flash'),
-      prompt: promptText,
-      system: systemText
-    });
+      // FIX 1: Added 'await' so the catch block can actually trap API failures
+      // FIX 2: Switched to 'gemini-flash-latest' to avoid the 404 restriction
+      const result = await streamText({
+        model: googleProvider('gemini-flash-latest'),
+        prompt: promptText,
+        system: systemText
+      });
 
-   }
-   catch(error){
+      return result;
+
+   } catch (error) {
       console.error("Google failed! Triggering failover to Mistral.", error);
     
-    // The silent failover model
-    return streamText({
-      model: mistralProvider('mistral-large-latest'),
-      prompt: promptText,
-      system: systemText
-    });
-
-
+      // The silent failover model
+      const fallbackResult = await streamText({
+        model: mistralProvider('mistral-large-latest'),
+        prompt: promptText,
+        system: systemText
+      });
+      
+      return fallbackResult;
    }
 }
 
@@ -60,7 +63,7 @@ async function generateWithFallback(promptText:string, systemText:string){
     if (!process.env.GOOGLE_AI_KEY) throw new Error("Missing Google api key");
 
     return streamText({
-      model: googleProvider('gemini-3.5-flash'), // Ensure you use a valid model name here!
+      model: googleProvider('gemini-flash-latest'), // Ensure you use a valid model name here!
       messages: messages, // Passing the full history here
       system: systemText
     });
@@ -151,7 +154,9 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
 
    // STEP-3 =  web search to gather the resources
      const WebSearchResponse=await client.search(query,{
-    searchDepth: "advanced"
+    searchDepth: "advanced",
+    includeImages: true,
+    includeFavicon: true
 })
 
    const WebSearchResult=WebSearchResponse.results;
@@ -208,13 +213,14 @@ app.post("/delve_Ask",middleware,async (req,res) =>{
    // STEP-7 = also get back the stream and the follow up question(which we get back from another parallel LLM call)
  
     const sourcesJsonString = JSON.stringify(
-  WebSearchResult.map((result) => ({
+  WebSearchResult.map((result,index) => ({
     url: result.url,
     favicon: result.favicon,
   }))
 );
+const imagesJsonString = JSON.stringify(WebSearchResponse.images ?? []);
 
-    const sourcesBlock = `\n\n<SOURCES>\n${sourcesJsonString}\n</SOURCES>`;
+    const sourcesBlock = `\n\n<SOURCES>\n${sourcesJsonString}\n</SOURCES>\n<IMAGES>\n${imagesJsonString}\n</IMAGES>`;
 
     res.write(sourcesBlock);
 
@@ -259,12 +265,27 @@ app.post("/delve_ask/followup", middleware, async (req, res) => {
     return;
   }
 
+  // 1. Perform a fresh web search for the follow-up question
+  const WebSearchResponse = await client.search(newMessage, {
+    searchDepth: "advanced",
+    includeImages: true,
+    includeFavicon: true
+  });
+  
+  const WebSearchResult = WebSearchResponse.results;
+
+  // 2. Format the new context using your PROMPT_TEMPLATE
+  const promptText = PROMPT_TEMPLATE
+    .replace("{{WEB_SEARCH_RESULT}}", JSON.stringify(WebSearchResult))
+    .replace("{{USER_QUERY}}", newMessage);
+
+  // 3. Format history, but use the enriched promptText for the latest message
   const formattedHistory: any[] = response.messages.map((msg) => ({
     role: msg.role === "User" ? "user" : "assistant",
     content: msg.content,
   }));
 
-  formattedHistory.push({ role: "user", content: newMessage });
+  formattedHistory.push({ role: "user", content: promptText });
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -272,21 +293,36 @@ app.post("/delve_ask/followup", middleware, async (req, res) => {
   res.flushHeaders();
 
   try {
+    // 4. Hit the LLM with the full history + new search context
     const result = await generateChatWithFallback(formattedHistory, SYSTEM_PROMPT);
 
-    let fullAssistantText = ""; // ← was missing
+    let fullAssistantText = ""; 
     for await (const TextPart of result.textStream) {
-      fullAssistantText += TextPart; // ← was missing
+      fullAssistantText += TextPart; 
       res.write(TextPart);
     }
 
+    // 5. Append the <SOURCES> block so the UI renders the new cards
+    const sourcesJsonString = JSON.stringify(
+      WebSearchResult.map((result, index) => ({
+        url: result.url,
+        favicon: result.favicon,
+        
+      }))
+    );
+    const imagesJsonString = JSON.stringify(WebSearchResponse.images ?? []);
+
+const sourcesBlock = `\n\n<SOURCES>\n${sourcesJsonString}\n</SOURCES>\n<IMAGES>\n${imagesJsonString}\n</IMAGES>`;
+
+    
+    res.write(sourcesBlock);
     res.end();
 
-    // ← this whole block was missing
+    // 6. Save to database (Save the original newMessage, not the massive promptText)
     await prisma.message.createMany({
       data: [
         { content: newMessage, role: "User", conversationId },
-        { content: fullAssistantText, role: "Assistant", conversationId },
+        { content: fullAssistantText + sourcesBlock, role: "Assistant", conversationId },
       ],
     });
   } catch (e) {
