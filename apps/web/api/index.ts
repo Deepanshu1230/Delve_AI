@@ -331,6 +331,10 @@ const sourcesBlock = `\n\n<SOURCES>\n${sourcesJsonString}\n</SOURCES>\n<IMAGES>\
   }
 });
 
+ app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
 app.listen(3001,()=>{
   console.log(
     "Listening on the Port number"
