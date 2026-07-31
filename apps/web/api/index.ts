@@ -3,13 +3,13 @@ import cors from "cors"
 import express from "express";
 import {tavily} from '@tavily/core';
 
-import { PROMPT_TEMPLATE } from "./prompt";
+import { PROMPT_TEMPLATE } from "./prompt.js";
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
-import { SYSTEM_PROMPT } from "./prompt";
-import { prisma } from './db';
-import { middleware } from './middlerware';
+import { SYSTEM_PROMPT } from "./prompt.js";
+import { prisma } from './db.js';
+import { middleware } from './middlerware.js';
 
 const app=express();
 const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
@@ -280,7 +280,7 @@ app.post("/delve_ask/followup", middleware, async (req, res) => {
     .replace("{{USER_QUERY}}", newMessage);
 
   // 3. Format history, but use the enriched promptText for the latest message
-  const formattedHistory: any[] = response.messages.map((msg) => ({
+  const formattedHistory: any[] = response.messages.map((msg:any) => ({
     role: msg.role === "User" ? "user" : "assistant",
     content: msg.content,
   }));

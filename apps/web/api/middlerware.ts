@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { createSupabaseClient } from "./client";
-import { prisma } from "./db";
+import { createSupabaseClient } from "./client.js";
+import { prisma } from "./db.js";
 
 declare global {
   namespace Express {
