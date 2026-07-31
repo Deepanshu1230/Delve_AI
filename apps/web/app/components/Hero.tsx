@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowUp, Globe, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function Hero() {
   const [query, setQuery] = useState("");
   const [searchMode, setSearchMode] = useState("Web Search");
   const [scrolled, setScrolled] = useState(false);
+  const router=useRouter();
 
   useEffect(() => {
   const handleScroll = () => {
@@ -69,12 +71,12 @@ export default function Hero() {
             <a href="#pricing" className={`transition-colors duration-500 ${scrolled ? "hover:text-black" : "hover:text-white"}`}>
               Pricing
             </a>
-            <a href="#login" className={`transition-colors duration-500 ${scrolled ? "hover:text-black" : "hover:text-white"}`}>
+            <a href="/login" className={`transition-colors duration-500 ${scrolled ? "hover:text-black" : "hover:text-white"}`}>
               Sign in
             </a>
           </div>
 
-          <button
+          <button onClick={()=> router.push("/login")}
             className={`font-semibold px-5 py-2 rounded-full text-sm transition-colors duration-500 shadow-md ${
               scrolled
                 ? "bg-[#0284c7] text-white hover:bg-[#0369a1]"

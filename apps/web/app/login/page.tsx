@@ -45,9 +45,7 @@ export default function LoginPage() {
           <Link href="/" className="text-2xl font-serif font-bold text-gray-900 tracking-tight">
             delve<span className="opacity-70">.ai</span>
           </Link>
-          <Link href="/signup" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-            Sign up
-          </Link>
+          
         </header>
 
         {/* Form Container */}

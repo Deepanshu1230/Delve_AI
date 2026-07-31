@@ -5,7 +5,7 @@ import Image from "next/image";
 
 export default function BentoGrid() {
   return (
-    <section className="w-full bg-[#f8fafc] py-24 px-4 md:px-8">
+    <section id="features" className="w-full bg-[#f8fafc] py-24 px-4 md:px-8">
       <div className="max-w-6xl mx-auto space-y-16">
         
         {/* Section Header */}

@@ -32,7 +32,7 @@ function FaqItem({ question, answer, isLast }: { question: string, answer: strin
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className={`border-gray-100 ${!isLast ? "border-b" : ""}`}>
+    <div  className={`border-gray-100 ${!isLast ? "border-b" : ""}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between py-6 px-6 md:px-8 text-left focus:outline-none group transition-colors hover:bg-gray-50/50"
@@ -66,7 +66,7 @@ function FaqItem({ question, answer, isLast }: { question: string, answer: strin
 
 export default function Faq() {
   return (
-    <section className="w-full bg-[#fcfcfd] py-24 px-4 md:px-8 relative overflow-hidden">
+    <section id="how-it-works" className="w-full bg-[#fcfcfd] py-24 px-4 md:px-8 relative overflow-hidden">
       <div className="max-w-3xl mx-auto flex flex-col items-center relative z-10">
         
         {/* Section Header */}
