@@ -23,10 +23,7 @@ export default function Home() {
       <Faq/>
       <Footer/>
 
-      {/* <FeatureShowcase /> */}
-      {/* <PlatformGrid /> */}
-      {/* <Pricing /> */}
-      {/* <Footer /> */}
+      
     </div>
   );
 }

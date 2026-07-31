@@ -16,7 +16,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push("/auth");
+    if (!authLoading && !user) router.push("/login");
   }, [authLoading, user, router]);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     setLoggingOut(true);
     try {
       await logout();
-      router.push("/auth");
+      router.push("/login");
     } finally {
       setLoggingOut(false);
     }

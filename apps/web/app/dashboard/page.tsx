@@ -4,27 +4,28 @@ import { useDelveChat } from "../contexts/DelveChatContext";
 import { useRouter } from "next/navigation";
 import { ConversationView } from "../components/ConversationView";
 
+
 const SUGGESTIONS = [
   {
-    label: "Learn",
-    text: "Explain transformers like I'm a physicist.",
+    label: "Explain",
+    text: "Why do interest rates affect the stock market?",
     icon: (
       <path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.4-1.5 3.2-.6.7-1 1.3-1 2.3v1h-3v-1c0-1 .4-1.6 1-2.3.7-.8 1.5-1.7 1.5-3.2a2 2 0 1 0-4 0H7a4 4 0 0 1 4-4z" />
     ),
   },
   {
-    label: "News",
-    text: "What's the state of fusion energy in 2026?",
+    label: "Current",
+    text: "What's driving the AI chip shortage right now?",
     icon: <path d="M4 4h16v16H4z M4 9h16 M9 4v16" />,
   },
   {
-    label: "Code",
-    text: "Compare React Server Components vs. Remix.",
+    label: "Compare",
+    text: "Postgres vs. MongoDB for a startup's first database.",
     icon: <path d="M8 6l-6 6 6 6 M16 6l6 6-6 6" />,
   },
   {
-    label: "Travel",
-    text: "A weekend itinerary for Lisbon, under €400.",
+    label: "Plan",
+    text: "A realistic 6-month roadmap to switch careers into tech.",
     icon: (
       <path d="M12 2l2.4 6.5L21 10l-5.5 4.2L17 21l-5-3.5L7 21l1.5-6.8L3 10l6.6-1.5z" />
     ),
@@ -36,6 +37,8 @@ export default function NewChatPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+ 
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

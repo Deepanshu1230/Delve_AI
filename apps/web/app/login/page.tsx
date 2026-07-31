@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from '@supabase/supabase-js'
+import { toast } from "sonner";
 
 // Create a single supabase client for interacting with your database
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -13,6 +14,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 export default function LoginPage() {
 
    async function login(provider: 'google' | 'github'){
+     const loadingToast = toast.loading(`Redirecting to ${provider === "google" ? "Google" : "GitHub"}…`);
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: provider,
             options: {
@@ -20,13 +22,13 @@ export default function LoginPage() {
             }
 }) 
 
-  if(error){
-    alert("Error while signing in");
-  }
-  else{
-    alert("Signed In");
-    
-  }
+ if (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Couldn't sign you in", {
+        description: error.message,
+      });
+    }
+  
 
     }
 
