@@ -1,4 +1,4 @@
-<img width="1355" height="644" alt="image" src="https://github.com/user-attachments/assets/abce443e-e360-465c-801e-fc505cb2ab20" /># Delve AI 🔍
+Delve AI 🔍
 
 <img width="1355" height="644" alt="image" src="https://github.com/user-attachments/assets/46d95b73-429e-409d-be63-38356aca5e9b" />
 
@@ -16,6 +16,16 @@
 
 ## 🚀 Live Demo
 (https://delve-ai-web.vercel.app/)
+
+## 🔄 Application Workflow
+
+1. **User Input:** The user submits a query via the Next.js glassmorphic UI.
+2. **API Trigger:** The frontend initiates a connection to the Express backend (hosted on Render).
+3. **Database Validation:** The backend uses Prisma and Supabase's connection pooler (Port 6543) to fetch conversation history and validate the session.
+4. **LLM Processing:** The backend forwards the contextualized prompt to the AI model.
+5. **Real-Time Streaming:** As the LLM generates tokens, the Express backend pipes them directly to the client as a readable stream.
+6. **Dynamic Parsing:** The frontend's `useDelveStream` hook captures the stream, strips backend-specific XML tags (like `<ANSWER>` or `<FOLLOWUPS>`), and buffers the raw text.
+7. **Progressive Rendering:** `react-markdown` instantly renders the buffered text to the screen, providing a smooth typewriter effect without UI flickering.
 
 ## ✨ Key Features
 - **Real-Time AI Streaming:** Utilizes standard node streams and custom buffers to render AI responses word-by-word without UI flickering.
