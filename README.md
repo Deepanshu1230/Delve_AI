@@ -1,4 +1,7 @@
-# Delve AI 🔍
+<img width="1355" height="644" alt="image" src="https://github.com/user-attachments/assets/abce443e-e360-465c-801e-fc505cb2ab20" /># Delve AI 🔍
+
+<img width="1355" height="644" alt="image" src="https://github.com/user-attachments/assets/46d95b73-429e-409d-be63-38356aca5e9b" />
+
 
 ![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-404D59?style=for-the-badge)
@@ -12,8 +15,7 @@
 ---
 
 ## 🚀 Live Demo
-- **Frontend (Vercel):** [Insert Vercel Link Here]
-- **Backend API (Render):** [Insert Render Link Here]
+(https://delve-ai-web.vercel.app/)
 
 ## ✨ Key Features
 - **Real-Time AI Streaming:** Utilizes standard node streams and custom buffers to render AI responses word-by-word without UI flickering.
@@ -25,7 +27,7 @@
 
 **Frontend (Client)**
 - Next.js (App Router)
-- React & TypeScript
+- TypeScript
 - Tailwind CSS & Framer Motion
 - `react-markdown` & `remark-gfm` for rich text formatting
 
@@ -44,5 +46,7 @@ Make sure you have [Bun](https://bun.sh/) and [Node.js](https://nodejs.org/) ins
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/your-username/delve-ai.git](https://github.com/your-username/delve-ai.git)
+  git clone [https://github.com/Deepanshu1230/Delve_AI.git]
 cd delve-ai
+cd apps/web
+bun run dev  ("This is for running Frontend")
